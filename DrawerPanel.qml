@@ -68,8 +68,7 @@ PanelWindow {
 
   readonly property real _barStripSize: {
     if (!bar) return 0
-    var actual = (root.barPos === "top" || root.barPos === "bottom") ? root.barH : root.barW
-    return Math.max(bar.barSize, actual) + root.gap
+    return root.barThickness + root.gap
   }
   mask: Region {
     width: root.open ? root.screenW : 0
@@ -92,10 +91,10 @@ PanelWindow {
   readonly property real screenW: screen ? screen.width : 0
   readonly property real screenH: screen ? screen.height : 0
   readonly property real availableCardWidth: screenW > 0
-    ? Math.max(120, screenW - ((barPos === "left" || barPos === "right") ? barW + gap + margin : margin * 2))
+    ? Math.max(120, screenW - ((barPos === "left" || barPos === "right") ? barThickness + gap + margin : margin * 2))
     : 0
   readonly property real availableCardHeight: screenH > 0
-    ? Math.max(120, screenH - ((barPos === "top" || barPos === "bottom") ? barH + gap + margin : margin * 2))
+    ? Math.max(120, screenH - ((barPos === "top" || barPos === "bottom") ? barThickness + gap + margin : margin * 2))
     : 0
   readonly property real verticalContentInset: padding * 2 + Border.top(borderSpec) + Border.bottom(borderSpec)
 
@@ -119,6 +118,10 @@ PanelWindow {
     return Math.round(Math.min(desired, maxHeight))
   }
 
+  // Omarchy 4.5 uses a full-screen bar surface; only the strip has this thickness.
+  readonly property real barThickness: !bar ? 0
+    : (typeof bar.barSizeFor === "function" && screen ? bar.barSizeFor(screen.name) : bar.barSize)
+
   readonly property real barW: anchorWindow ? anchorWindow.width : screenW
   readonly property real barH: anchorWindow ? anchorWindow.height : 0
   readonly property point cardOrigin: {
@@ -126,22 +129,22 @@ PanelWindow {
     var x = 0, y = 0
     if (centerOnBar && (barPos === "top" || barPos === "bottom")) {
       x = screenW / 2 - contentWidth / 2
-      y = barPos === "bottom" ? screenH - barH - contentHeight - gap : barH + gap
+      y = barPos === "bottom" ? screenH - barThickness - contentHeight - gap : barThickness + gap
     } else if (centerOnBar) {
-      x = barPos === "left" ? barW + gap : screenW - barW - contentWidth - gap
+      x = barPos === "left" ? barThickness + gap : screenW - barThickness - contentWidth - gap
       y = screenH / 2 - contentHeight / 2
     } else if (barPos === "bottom") {
       x = anchorScreenPos.x + anchorW / 2 - contentWidth / 2
-      y = screenH - barH - contentHeight - gap
+      y = screenH - barThickness - contentHeight - gap
     } else if (barPos === "left") {
-      x = barW + gap
+      x = barThickness + gap
       y = anchorScreenPos.y + anchorH / 2 - contentHeight / 2
     } else if (barPos === "right") {
-      x = screenW - barW - contentWidth - gap
+      x = screenW - barThickness - contentWidth - gap
       y = anchorScreenPos.y + anchorH / 2 - contentHeight / 2
     } else { // "top" (default)
       x = anchorScreenPos.x + anchorW / 2 - contentWidth / 2
-      y = barH + gap
+      y = barThickness + gap
     }
     x = Math.max(margin, Math.min(x, screenW - contentWidth - margin))
     y = Math.max(margin, Math.min(y, screenH - contentHeight - margin))
@@ -278,10 +281,10 @@ PanelWindow {
   // Keep the card and shadow behind the bar's inner edge on every bar side.
   Item {
     id: drawerViewport
-    x: root.barPos === "left" ? root.barW : 0
-    y: root.barPos === "top" ? root.barH : 0
-    width: Math.max(0, root.screenW - x - (root.barPos === "right" ? root.barW : 0))
-    height: Math.max(0, root.screenH - y - (root.barPos === "bottom" ? root.barH : 0))
+    x: root.barPos === "left" ? root.barThickness : 0
+    y: root.barPos === "top" ? root.barThickness : 0
+    width: Math.max(0, root.screenW - x - (root.barPos === "right" ? root.barThickness : 0))
+    height: Math.max(0, root.screenH - y - (root.barPos === "bottom" ? root.barThickness : 0))
     clip: true
 
     RectangularShadow {

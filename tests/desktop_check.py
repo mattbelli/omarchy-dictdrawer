@@ -41,6 +41,7 @@ def monitor(mode, scale):
 def check(state):
     x, y, width, height = (state[k] for k in ("x", "y", "width", "height"))
     assert state["open"], state
+    assert state["viewportW"] > 0 and state["viewportH"] > 0, state
     assert 0 <= x and 0 <= y and x + width <= state["screenW"] + 1 and y + height <= state["screenH"] + 1, state
     side, bar = state["side"], state["bar"]
     if side == "top": assert y >= bar, state
@@ -88,7 +89,9 @@ def main():
       searchBusy: searchBusy,
       x: panel.cardOrigin.x, y: panel.cardOrigin.y, width: panel.contentWidth, height: panel.contentHeight,
       screenW: panel.screenW, screenH: panel.screenH, side: panel.barPos,
-      bar: panel.barPos === "top" || panel.barPos === "bottom" ? panel.barH : panel.barW,
+      bar: panel.bar.barSize,
+      viewportW: panel.qaViewportWidth, viewportH: panel.qaViewportHeight,
+      surfaceW: panel.barW, surfaceH: panel.barH,
       footerBottom: footer.y + footer.height, innerHeight: panel.contentHeight - panel.verticalContentInset,
       footerY: footer.y, resultsHeight: resultsArea.height, searchWidth: searchField.width,
       searchPadding: searchField.leftPadding + searchField.rightPadding})
@@ -96,6 +99,7 @@ def main():
 ''', 1))
             drawer = plugin / "DrawerPanel.qml"
             drawer_source = drawer.read_text().replace('WlrLayershell.keyboardFocus: open\n    ? (focusPrimed ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive)\n    : WlrKeyboardFocus.None', 'WlrLayershell.keyboardFocus: WlrKeyboardFocus.None')
+            drawer_source = drawer_source.replace('  id: root\n', '  id: root\n  readonly property real qaViewportWidth: drawerViewport.width\n  readonly property real qaViewportHeight: drawerViewport.height\n', 1)
             # The production drawer dismisses on clicks on other monitors.
             # Never create those input-catching layers on physical QA outputs.
             drawer_source = drawer_source.replace('model: root.open ? Quickshell.screens : []', 'model: []')
@@ -143,6 +147,18 @@ def main():
                             cases += 1
                     print(f"PASS {mode} at {scale}x: four sides, 24/72px bars, 12/20px fonts", flush=True)
                 monitor("1920x1080", 1)
+                # Omarchy 4.5 paints its strip inside a full-screen surface.
+                # A drawer using surface height/width as strip thickness clips
+                # all content away even though its overlay maps successfully.
+                ipc("surface", "true")
+                for side in ("top", "bottom", "left", "right"):
+                    ipc("setup", side, 38, 14)
+                    time.sleep(0.4)
+                    state = snapshot()
+                    check(state)
+                    assert state["surfaceW"] == state["screenW"] and state["surfaceH"] == state["screenH"], state
+                print("PASS full-screen bar surface: drawer remains visible on all four sides", flush=True)
+                ipc("surface", "false")
                 ipc("setup", "top", 38, 14)
                 time.sleep(0.4)
                 sizes = []

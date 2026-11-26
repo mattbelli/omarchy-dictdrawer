@@ -28,13 +28,14 @@ ShellRoot {
     id: previewBar
     screen: backdrop.screen
     visible: backdrop.visible
-    anchors { top: position !== "bottom"; bottom: position !== "top"; left: position !== "right"; right: position !== "left" }
+    anchors { top: fullScreenSurface || position !== "bottom"; bottom: fullScreenSurface || position !== "top"; left: fullScreenSurface || position !== "right"; right: fullScreenSurface || position !== "left" }
     implicitHeight: barSize
     implicitWidth: barSize
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "dictdrawer-qa-bar"
-    color: Color.bar.background
+    color: "transparent"
+    property bool fullScreenSurface: false
     property string position: "top"
     property bool vertical: position === "left" || position === "right"
     property int barSize: 38
@@ -51,10 +52,18 @@ ShellRoot {
     function unregisterClickTarget(item) { clickTargets = [] }
     function requestPopout(item) { activePopout = item }
     function releasePopout(item) { activePopout = null }
-    Plugin.Panel {
-      id: widget
-      anchors.centerIn: parent
-      bar: previewBar
+    Rectangle {
+      id: barStrip
+      width: previewBar.vertical ? previewBar.barSize : parent.width
+      height: previewBar.vertical ? parent.height : previewBar.barSize
+      x: previewBar.position === "right" ? parent.width - width : 0
+      y: previewBar.position === "bottom" ? parent.height - height : 0
+      color: Color.bar.background
+      Plugin.Panel {
+        id: widget
+        anchors.centerIn: parent
+        bar: previewBar
+      }
     }
   }
   IpcHandler {
@@ -69,10 +78,11 @@ ShellRoot {
       reopen.restart()
     }
     function query(value: string): void { widget.qaQuery(value) }
+    function surface(fullScreen: bool): void { previewBar.fullScreenSurface = fullScreen }
     function close(): void { widget.close() }
     function state(): string { return widget.qaState() }
     function appearance(): string {
-      return JSON.stringify({bar: previewBar.color.toString(), expectedBar: Color.bar.background.toString(),
+      return JSON.stringify({bar: barStrip.color.toString(), expectedBar: Color.bar.background.toString(),
         wallpaperReady: wallpaper.status === Image.Ready})
     }
     function quit(): void { Qt.quit() }
